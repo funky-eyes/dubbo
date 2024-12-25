@@ -16,6 +16,9 @@
  */
 package org.apache.dubbo.remoting.http12.netty4.h1;
 
+import io.netty.channel.ChannelFutureListener;
+import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpUtil;
 import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.remoting.http12.HttpHeaderNames;
 import org.apache.dubbo.remoting.http12.HttpMetadata;
@@ -41,11 +44,14 @@ import io.netty.handler.codec.http.LastHttpContent;
 
 public class NettyHttp1Codec extends ChannelDuplexHandler {
 
+    boolean keepAlive;
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         // decode FullHttpRequest
         if (msg instanceof FullHttpRequest) {
             FullHttpRequest request = (FullHttpRequest) msg;
+            keepAlive = HttpUtil.isKeepAlive(request);
             super.channelRead(
                     ctx,
                     new DefaultHttp1Request(
@@ -80,19 +86,28 @@ public class NettyHttp1Codec extends ChannelDuplexHandler {
         if (CollectionUtils.isNotEmpty(statusHeaders)) {
             status = HttpResponseStatus.valueOf(Integer.parseInt(statusHeaders.get(0)));
         }
+        if (keepAlive) {
+            headers.add(HttpHeaderNames.CONNECTION.getKey(), String.valueOf(HttpHeaderValues.KEEP_ALIVE));
+        } else {
+            headers.add(HttpHeaderNames.CONNECTION.getKey(), String.valueOf(HttpHeaderValues.CLOSE));
+        }
         // process normal headers
-        ctx.writeAndFlush(new DefaultHttpResponse(HttpVersion.HTTP_1_1, status, headers.getHeaders()), promise);
+        ctx.write(new DefaultHttpResponse(HttpVersion.HTTP_1_1, status, headers.getHeaders()), promise);
     }
 
     private void doWriteMessage(ChannelHandlerContext ctx, HttpOutputMessage msg, ChannelPromise promise) {
         if (HttpOutputMessage.EMPTY_MESSAGE == msg) {
-            ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT, promise);
+            if (!keepAlive) {
+                ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT, promise).addListener(ChannelFutureListener.CLOSE);
+            } else {
+                ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT, promise);
+            }
             return;
         }
         OutputStream body = msg.getBody();
         if (body instanceof ByteBufOutputStream) {
             ByteBuf buffer = ((ByteBufOutputStream) body).buffer();
-            ctx.writeAndFlush(buffer, promise);
+            ctx.write(buffer, promise);
             return;
         }
         throw new IllegalArgumentException("HttpOutputMessage body must be 'io.netty.buffer.ByteBufOutputStream'");
