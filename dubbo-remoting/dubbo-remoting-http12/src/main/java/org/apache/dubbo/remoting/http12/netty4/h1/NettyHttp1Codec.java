@@ -92,7 +92,7 @@ public class NettyHttp1Codec extends ChannelDuplexHandler {
             headers.add(HttpHeaderNames.CONNECTION.getKey(), String.valueOf(HttpHeaderValues.CLOSE));
         }
         // process normal headers
-        ctx.write(new DefaultHttpResponse(HttpVersion.HTTP_1_1, status, headers.getHeaders()), promise);
+        ctx.writeAndFlush(new DefaultHttpResponse(HttpVersion.HTTP_1_1, status, headers.getHeaders()), promise);
     }
 
     private void doWriteMessage(ChannelHandlerContext ctx, HttpOutputMessage msg, ChannelPromise promise) {
@@ -107,7 +107,7 @@ public class NettyHttp1Codec extends ChannelDuplexHandler {
         OutputStream body = msg.getBody();
         if (body instanceof ByteBufOutputStream) {
             ByteBuf buffer = ((ByteBufOutputStream) body).buffer();
-            ctx.write(buffer, promise);
+            ctx.writeAndFlush(buffer, promise);
             return;
         }
         throw new IllegalArgumentException("HttpOutputMessage body must be 'io.netty.buffer.ByteBufOutputStream'");
