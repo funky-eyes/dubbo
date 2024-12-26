@@ -44,7 +44,7 @@ import io.netty.handler.codec.http.LastHttpContent;
 
 public class NettyHttp1Codec extends ChannelDuplexHandler {
 
-    boolean keepAlive;
+    private boolean keepAlive;
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -97,10 +97,10 @@ public class NettyHttp1Codec extends ChannelDuplexHandler {
 
     private void doWriteMessage(ChannelHandlerContext ctx, HttpOutputMessage msg, ChannelPromise promise) {
         if (HttpOutputMessage.EMPTY_MESSAGE == msg) {
-            if (!keepAlive) {
-                ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT, promise).addListener(ChannelFutureListener.CLOSE);
-            } else {
+            if (keepAlive) {
                 ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT, promise);
+            } else {
+                ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT, promise).addListener(ChannelFutureListener.CLOSE);
             }
             return;
         }
