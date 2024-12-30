@@ -26,6 +26,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -97,11 +98,15 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
                     ((ParameterizedType) genericParameterTypes[0]).getActualTypeArguments()[0]);
             return RpcType.BI_STREAM;
         }
-        if (((hasStreamType(parameterClasses) && parameterClasses.length == 1)
-                        || parameterClasses.length == 2
-                                && !isStreamType(parameterClasses[0])
-                                && isStreamType(parameterClasses[1]))
-                && returnClass.getName().equals(void.class.getName())) {
+        boolean returnIsVoid = returnClass.getName().equals(void.class.getName());
+        if (returnIsVoid && parameterClasses.length == 1 && isStreamType(parameterClasses[0])) {
+            actualRequestTypes = Collections.emptyList().toArray(new Class<?>[0]);
+            return RpcType.SERVER_STREAM;
+        }
+        if (returnIsVoid
+                && parameterClasses.length == 2
+                && !isStreamType(parameterClasses[0])
+                && isStreamType(parameterClasses[1])) {
             return RpcType.SERVER_STREAM;
         }
         if (Arrays.stream(parameterClasses).anyMatch(this::isStreamType) || isStreamType(returnClass)) {
