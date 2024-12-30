@@ -22,8 +22,11 @@ import org.apache.dubbo.common.stream.StreamObserver;
 import org.apache.dubbo.common.utils.ReflectUtils;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -48,6 +51,8 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
     private final Method method;
     private final boolean generic;
     private final RpcType rpcType;
+    private Class<?>[] actualRequestTypes;
+    private Class<?> actualResponseType;
 
     public ReflectionMethodDescriptor(Method method) {
         this.method = method;
@@ -82,13 +87,17 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
         if (parameterClasses.length > 2) {
             return RpcType.UNARY;
         }
+        Type[] genericParameterTypes = method.getGenericParameterTypes();
         if (parameterClasses.length == 1 && isStreamType(parameterClasses[0]) && isStreamType(returnClass)) {
+            this.actualRequestTypes = new Class<?>[] {
+                obtainActualTypeInStreamObserver(
+                        ((ParameterizedType) method.getGenericReturnType()).getActualTypeArguments()[0])
+            };
+            actualResponseType = obtainActualTypeInStreamObserver(
+                    ((ParameterizedType) genericParameterTypes[0]).getActualTypeArguments()[0]);
             return RpcType.BI_STREAM;
         }
-        if (parameterClasses.length == 2
-                && !isStreamType(parameterClasses[0])
-                && isStreamType(parameterClasses[1])
-                && returnClass.getName().equals(void.class.getName())) {
+        if (parameterClasses.length >= 1 && hasStreamType(parameterClasses)) {
             return RpcType.SERVER_STREAM;
         }
         if (Arrays.stream(parameterClasses).anyMatch(this::isStreamType) || isStreamType(returnClass)) {
@@ -99,8 +108,28 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
         return RpcType.UNARY;
     }
 
+    private boolean hasStreamType(Class<?>[] parameterClasses) {
+        List<Class<?>> parameterClassList = new ArrayList<>();
+        for (Class<?> parameterClass : parameterClasses) {
+            if (isStreamType(parameterClass)) {
+                actualResponseType = parameterClass;
+            } else {
+                parameterClassList.add(parameterClass);
+            }
+        }
+        actualRequestTypes = parameterClassList.toArray(new Class<?>[0]);
+        return actualResponseType != null;
+    }
+
     private boolean isStreamType(Class<?> classType) {
         return StreamObserver.class.isAssignableFrom(classType);
+    }
+
+    private static Class<?> obtainActualTypeInStreamObserver(Type typeInStreamObserver) {
+        return (Class<?>)
+                (typeInStreamObserver instanceof ParameterizedType
+                        ? ((ParameterizedType) typeInStreamObserver).getRawType()
+                        : typeInStreamObserver);
     }
 
     @Override
@@ -154,6 +183,14 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
 
     public Object getAttribute(String key) {
         return this.attributeMap.get(key);
+    }
+
+    public Class<?>[] getActualRequestTypes() {
+        return actualRequestTypes;
+    }
+
+    public Class<?> getActualResponseType() {
+        return actualResponseType;
     }
 
     @Override
