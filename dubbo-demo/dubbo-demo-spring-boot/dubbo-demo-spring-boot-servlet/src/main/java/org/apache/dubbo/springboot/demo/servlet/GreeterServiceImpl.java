@@ -54,12 +54,12 @@ public class GreeterServiceImpl implements GreeterService {
 
     @Override
     public void sayHelloServerStreamNoParameter(StreamObserver<HelloReply> responseObserver) {
-        LOGGER.info("Received sayHelloServerStream request");
+        LOGGER.info("Received sayHelloServerStreamNoParameter request");
         for (int i = 1; i < 6; i++) {
-            LOGGER.info("sayHelloServerStream onNext:  {} times", i);
+            LOGGER.info("sayHelloServerStreamNoParameter onNext:  {} times", i);
             responseObserver.onNext(toReply("Hello " + ' ' + i + " times"));
         }
-        LOGGER.info("sayHelloServerStream onCompleted");
+        LOGGER.info("sayHelloServerStreamNoParameter onCompleted");
         responseObserver.onCompleted();
     }
 
