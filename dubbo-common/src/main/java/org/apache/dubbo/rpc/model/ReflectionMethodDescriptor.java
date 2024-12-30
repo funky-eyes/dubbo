@@ -24,10 +24,8 @@ import org.apache.dubbo.common.utils.ReflectUtils;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -115,19 +113,6 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
         }
         // Can not determine client stream because it has same signature with bi_stream
         return RpcType.UNARY;
-    }
-
-    private boolean hasStreamType(Class<?>[] parameterClasses) {
-        List<Class<?>> parameterClassList = new ArrayList<>();
-        for (Class<?> parameterClass : parameterClasses) {
-            if (isStreamType(parameterClass)) {
-                actualResponseType = parameterClass;
-            } else {
-                parameterClassList.add(parameterClass);
-            }
-        }
-        actualRequestTypes = parameterClassList.toArray(new Class<?>[0]);
-        return actualResponseType != null;
     }
 
     private boolean isStreamType(Class<?> classType) {
