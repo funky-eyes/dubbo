@@ -97,7 +97,11 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
                     ((ParameterizedType) genericParameterTypes[0]).getActualTypeArguments()[0]);
             return RpcType.BI_STREAM;
         }
-        if (parameterClasses.length >= 1 && hasStreamType(parameterClasses) && !isStreamType(returnClass)) {
+        if (((hasStreamType(parameterClasses) && parameterClasses.length == 1)
+                        || parameterClasses.length == 2
+                                && !isStreamType(parameterClasses[0])
+                                && isStreamType(parameterClasses[1]))
+                && returnClass.getName().equals(void.class.getName())) {
             return RpcType.SERVER_STREAM;
         }
         if (Arrays.stream(parameterClasses).anyMatch(this::isStreamType) || isStreamType(returnClass)) {
