@@ -38,7 +38,7 @@ import static org.apache.dubbo.common.utils.MethodUtils.toShortString;
 
 public class ReflectionMethodDescriptor implements MethodDescriptor {
     private static final ErrorTypeAwareLogger logger =
-            LoggerFactory.getErrorTypeAwareLogger(ReflectionMethodDescriptor.class);
+        LoggerFactory.getErrorTypeAwareLogger(ReflectionMethodDescriptor.class);
 
     private final ConcurrentMap<String, Object> attributeMap = new ConcurrentHashMap<>();
     public final String methodName;
@@ -63,18 +63,18 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
             returnTypesResult = ReflectUtils.getReturnTypes(method);
         } catch (Throwable throwable) {
             logger.error(
-                    COMMON_REFLECTIVE_OPERATION_FAILED,
-                    "",
-                    "",
-                    "fail to get return types. Method name: " + methodName + " Declaring class:"
-                            + method.getDeclaringClass().getName(),
-                    throwable);
+                COMMON_REFLECTIVE_OPERATION_FAILED,
+                "",
+                "",
+                "fail to get return types. Method name: " + methodName + " Declaring class:"
+                    + method.getDeclaringClass().getName(),
+                throwable);
             returnTypesResult = new Type[] {returnClass, returnClass};
         }
         this.returnTypes = returnTypesResult;
         this.paramDesc = ReflectUtils.getDesc(parameterClasses);
         this.compatibleParamSignatures =
-                Stream.of(parameterClasses).map(Class::getName).toArray(String[]::new);
+            Stream.of(parameterClasses).map(Class::getName).toArray(String[]::new);
         this.generic = (methodName.equals($INVOKE) || methodName.equals($INVOKE_ASYNC)) && parameterClasses.length == 3;
         this.rpcType = determineRpcType();
     }
@@ -90,31 +90,31 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
         if (parameterClasses.length == 1 && isStreamType(parameterClasses[0]) && isStreamType(returnClass)) {
             this.actualRequestTypes = new Class<?>[] {
                 obtainActualTypeInStreamObserver(
-                        ((ParameterizedType) method.getGenericReturnType()).getActualTypeArguments()[0])
+                    ((ParameterizedType) method.getGenericReturnType()).getActualTypeArguments()[0])
             };
             actualResponseType = obtainActualTypeInStreamObserver(
-                    ((ParameterizedType) genericParameterTypes[0]).getActualTypeArguments()[0]);
+                ((ParameterizedType) genericParameterTypes[0]).getActualTypeArguments()[0]);
             return RpcType.BI_STREAM;
         }
         boolean returnIsVoid = returnClass.getName().equals(void.class.getName());
         if (returnIsVoid && parameterClasses.length == 1 && isStreamType(parameterClasses[0])) {
             actualRequestTypes = Collections.emptyList().toArray(new Class<?>[0]);
             actualResponseType = obtainActualTypeInStreamObserver(
-                    ((ParameterizedType) method.getGenericParameterTypes()[0]).getActualTypeArguments()[0]);
+                ((ParameterizedType) method.getGenericParameterTypes()[0]).getActualTypeArguments()[0]);
             return RpcType.SERVER_STREAM;
         }
         if (returnIsVoid
-                && parameterClasses.length == 2
-                && !isStreamType(parameterClasses[0])
-                && isStreamType(parameterClasses[1])) {
+            && parameterClasses.length == 2
+            && !isStreamType(parameterClasses[0])
+            && isStreamType(parameterClasses[1])) {
             actualRequestTypes = parameterClasses;
             actualResponseType = obtainActualTypeInStreamObserver(
-                    ((ParameterizedType) method.getGenericParameterTypes()[1]).getActualTypeArguments()[0]);
+                ((ParameterizedType) method.getGenericParameterTypes()[1]).getActualTypeArguments()[0]);
             return RpcType.SERVER_STREAM;
         }
         if (Arrays.stream(parameterClasses).anyMatch(this::isStreamType) || isStreamType(returnClass)) {
             throw new IllegalStateException(
-                    "Bad stream method signature. method(" + methodName + ":" + paramDesc + ")");
+                "Bad stream method signature. method(" + methodName + ":" + paramDesc + ")");
         }
         // Can not determine client stream because it has same signature with bi_stream
         return RpcType.UNARY;
@@ -189,9 +189,9 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
 
     private Class<?> obtainActualTypeInStreamObserver(Type typeInStreamObserver) {
         return (Class<?>)
-                (typeInStreamObserver instanceof ParameterizedType
-                        ? ((ParameterizedType) typeInStreamObserver).getRawType()
-                        : typeInStreamObserver);
+            (typeInStreamObserver instanceof ParameterizedType
+                ? ((ParameterizedType) typeInStreamObserver).getRawType()
+                : typeInStreamObserver);
     }
 
     @Override
@@ -204,15 +204,14 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
         }
         ReflectionMethodDescriptor that = (ReflectionMethodDescriptor) o;
         return generic == that.generic
-                && Objects.equals(method, that.method)
-                && Objects.equals(paramDesc, that.paramDesc)
-                && Arrays.equals(compatibleParamSignatures, that.compatibleParamSignatures)
-                && Arrays.equals(parameterClasses, that.parameterClasses)
-                && Objects.equals(returnClass, that.returnClass)
-                && Arrays.equals(returnTypes, that.returnTypes)
-                && Objects.equals(methodName, that.methodName)
-                && Objects.equals(attributeMap, that.attributeMap)
-                && Objects.equals(actualResponseType, that.actualResponseType);
+            && Objects.equals(method, that.method)
+            && Objects.equals(paramDesc, that.paramDesc)
+            && Arrays.equals(compatibleParamSignatures, that.compatibleParamSignatures)
+            && Arrays.equals(parameterClasses, that.parameterClasses)
+            && Objects.equals(returnClass, that.returnClass)
+            && Arrays.equals(returnTypes, that.returnTypes)
+            && Objects.equals(methodName, that.methodName)
+            && Objects.equals(attributeMap, that.attributeMap);
     }
 
     @Override
