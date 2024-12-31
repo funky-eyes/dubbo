@@ -99,12 +99,17 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
         boolean returnIsVoid = returnClass.getName().equals(void.class.getName());
         if (returnIsVoid && parameterClasses.length == 1 && isStreamType(parameterClasses[0])) {
             actualRequestTypes = Collections.emptyList().toArray(new Class<?>[0]);
+            actualResponseType = obtainActualTypeInStreamObserver(
+                    ((ParameterizedType) method.getGenericParameterTypes()[0]).getActualTypeArguments()[0]);
             return RpcType.SERVER_STREAM;
         }
         if (returnIsVoid
                 && parameterClasses.length == 2
                 && !isStreamType(parameterClasses[0])
                 && isStreamType(parameterClasses[1])) {
+            actualRequestTypes = parameterClasses;
+            actualResponseType = obtainActualTypeInStreamObserver(
+                    ((ParameterizedType) method.getGenericParameterTypes()[1]).getActualTypeArguments()[0]);
             return RpcType.SERVER_STREAM;
         }
         if (Arrays.stream(parameterClasses).anyMatch(this::isStreamType) || isStreamType(returnClass)) {
@@ -117,13 +122,6 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
 
     private boolean isStreamType(Class<?> classType) {
         return StreamObserver.class.isAssignableFrom(classType);
-    }
-
-    private static Class<?> obtainActualTypeInStreamObserver(Type typeInStreamObserver) {
-        return (Class<?>)
-                (typeInStreamObserver instanceof ParameterizedType
-                        ? ((ParameterizedType) typeInStreamObserver).getRawType()
-                        : typeInStreamObserver);
     }
 
     @Override
@@ -179,12 +177,21 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
         return this.attributeMap.get(key);
     }
 
+    @Override
     public Class<?>[] getActualRequestTypes() {
         return actualRequestTypes;
     }
 
+    @Override
     public Class<?> getActualResponseType() {
         return actualResponseType;
+    }
+
+    private Class<?> obtainActualTypeInStreamObserver(Type typeInStreamObserver) {
+        return (Class<?>)
+                (typeInStreamObserver instanceof ParameterizedType
+                        ? ((ParameterizedType) typeInStreamObserver).getRawType()
+                        : typeInStreamObserver);
     }
 
     @Override
@@ -204,7 +211,8 @@ public class ReflectionMethodDescriptor implements MethodDescriptor {
                 && Objects.equals(returnClass, that.returnClass)
                 && Arrays.equals(returnTypes, that.returnTypes)
                 && Objects.equals(methodName, that.methodName)
-                && Objects.equals(attributeMap, that.attributeMap);
+                && Objects.equals(attributeMap, that.attributeMap)
+                && Objects.equals(actualResponseType, that.actualResponseType);
     }
 
     @Override

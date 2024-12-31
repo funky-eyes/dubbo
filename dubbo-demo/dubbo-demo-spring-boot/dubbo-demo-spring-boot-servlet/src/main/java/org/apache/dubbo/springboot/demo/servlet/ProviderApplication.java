@@ -18,6 +18,7 @@ package org.apache.dubbo.springboot.demo.servlet;
 
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 
+import org.apache.curator.test.TestingServer;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -25,7 +26,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @EnableDubbo
 public class ProviderApplication {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        TestingServer server = new TestingServer(2181);
+        server.start();
         SpringApplication.run(ProviderApplication.class, args);
         System.out.println("dubbo service started");
     }
