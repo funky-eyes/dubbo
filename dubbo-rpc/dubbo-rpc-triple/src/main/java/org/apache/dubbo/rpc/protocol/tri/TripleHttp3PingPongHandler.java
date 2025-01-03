@@ -14,24 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.dubbo.springboot.demo.provider;
+package org.apache.dubbo.rpc.protocol.tri;
 
-import org.apache.curator.test.TestingServer;
-import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
+import io.netty.channel.ChannelHandlerContext;
 
-import java.util.concurrent.CountDownLatch;
+public class TripleHttp3PingPongHandler extends TriplePingPongHandler {
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
-@EnableDubbo(scanBasePackages = {"org.apache.dubbo.springboot.demo.provider"})
-public class ProviderApplication {
-    public static void main(String[] args) throws Exception {
-        TestingServer testingServer = new TestingServer(2181);
-        testingServer.start();
-        SpringApplication.run(ProviderApplication.class, args);
-        System.out.println("dubbo service started");
-        new CountDownLatch(1).await();
+    public TripleHttp3PingPongHandler(long pingAckTimeout) {
+        super(pingAckTimeout);
     }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        super.channelRead(ctx, msg);
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        super.userEventTriggered(ctx, evt);
+    }
+
 }

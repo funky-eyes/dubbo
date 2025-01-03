@@ -132,7 +132,7 @@ public final class Http3Exchanger {
         return pipeline -> {
             pipeline.addLast(Http3ClientFrameCodec.INSTANCE);
             pipeline.addLast(new IdleStateHandler(heartbeat, 0, 0, TimeUnit.MILLISECONDS));
-            pipeline.addLast(new TriplePingPongHandler(closeTimeout));
+            pipeline.addLast(new TripleHttp3PingPongHandler(closeTimeout));
         };
     }
 

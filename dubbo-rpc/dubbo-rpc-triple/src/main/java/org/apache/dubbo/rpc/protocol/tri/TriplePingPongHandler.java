@@ -27,9 +27,9 @@ import io.netty.handler.timeout.IdleStateEvent;
 
 public class TriplePingPongHandler extends ChannelDuplexHandler {
 
-    private final long pingAckTimeout;
+    protected final long pingAckTimeout;
 
-    private ScheduledFuture<?> pingAckTimeoutFuture;
+    protected ScheduledFuture<?> pingAckTimeoutFuture;
 
     public TriplePingPongHandler(long pingAckTimeout) {
         this.pingAckTimeout = pingAckTimeout;

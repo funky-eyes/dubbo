@@ -23,6 +23,10 @@ dubbo:
     name: ${spring.application.name}
   protocol:
     name: tri
+    triple:
+      http3:
+        enabled: true
+        negotiation: false
     port: -1
   registry:
     id: zk-registry
