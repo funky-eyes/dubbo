@@ -93,19 +93,17 @@ public final class Http3Exchanger {
     }
 
     private static Consumer<ChannelPipeline> configServerPipeline(URL url) {
+        int heartbeat = UrlUtils.getHeartbeat(url);
         NettyHttp3ProtocolSelectorHandler selectorHandler =
                 new NettyHttp3ProtocolSelectorHandler(url, ScopeModelUtil.getFrameworkModel(url.getScopeModel()));
         return pipeline -> {
             pipeline.addLast(new Http3ServerConnectionHandler(new ChannelInitializer<QuicStreamChannel>() {
                 @Override
                 protected void initChannel(QuicStreamChannel ch) {
-                    ch.pipeline()
-                            .addLast(new HttpWriteQueueHandler())
-                            .addLast(new FlushConsolidationHandler(64, true))
-                            .addLast(NettyHttp3FrameCodec.INSTANCE)
-                            .addLast(selectorHandler);
+                    ch.pipeline().addLast(new HttpWriteQueueHandler()).addLast(new FlushConsolidationHandler(64, true))
+                        .addLast(NettyHttp3FrameCodec.INSTANCE).addLast(selectorHandler);
                 }
-            }));
+            }, new TripleHttp3PingPongHandler(heartbeat), null, null, true));
             pipeline.addLast(new Http3TripleServerConnectionHandler());
         };
     }
@@ -128,11 +126,10 @@ public final class Http3Exchanger {
 
     private static Consumer<ChannelPipeline> configClientPipeline(URL url) {
         int heartbeat = UrlUtils.getHeartbeat(url);
-        int closeTimeout = UrlUtils.getCloseTimeout(url);
         return pipeline -> {
             pipeline.addLast(Http3ClientFrameCodec.INSTANCE);
             pipeline.addLast(new IdleStateHandler(heartbeat, 0, 0, TimeUnit.MILLISECONDS));
-            pipeline.addLast(new TripleHttp3PingPongHandler(closeTimeout));
+            pipeline.addLast(new TripleHttp3PingPongHandler(heartbeat));
         };
     }
 

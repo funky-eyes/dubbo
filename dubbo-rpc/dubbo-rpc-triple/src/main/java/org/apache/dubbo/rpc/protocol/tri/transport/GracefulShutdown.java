@@ -26,6 +26,9 @@ import io.netty.handler.codec.http2.DefaultHttp2PingFrame;
 import io.netty.handler.codec.http2.Http2Error;
 import io.netty.handler.codec.http2.Http2GoAwayFrame;
 import io.netty.handler.codec.http2.Http2PingFrame;
+import io.netty.incubator.codec.http3.DefaultHttp3GoAwayFrame;
+import io.netty.incubator.codec.http3.Http3ErrorCode;
+import io.netty.incubator.codec.http3.Http3GoAwayFrame;
 import io.netty.util.concurrent.Future;
 
 public class GracefulShutdown {
@@ -53,6 +56,12 @@ public class GracefulShutdown {
 
         Http2PingFrame pingFrame = new DefaultHttp2PingFrame(GRACEFUL_SHUTDOWN_PING, false);
         ctx.writeAndFlush(pingFrame);
+    }
+
+    public void gracefulHttp3Shutdown() {
+        Http3GoAwayFrame goAwayFrame =
+                new DefaultHttp3GoAwayFrame(Http3ErrorCode.H3_NO_ERROR.ordinal());
+        ctx.writeAndFlush(goAwayFrame);
     }
 
     void secondGoAwayAndClose(ChannelHandlerContext ctx) {
