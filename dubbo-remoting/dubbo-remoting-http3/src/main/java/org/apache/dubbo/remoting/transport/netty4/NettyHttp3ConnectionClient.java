@@ -89,7 +89,6 @@ public final class NettyHttp3ConnectionClient extends AbstractNettyConnectionCli
                     @Override
                     protected void initChannel(QuicChannel ch) {
                         ChannelPipeline pipeline = ch.pipeline();
-                        pipeline.addLast(new Http3ClientConnectionHandler());
                         pipeline.addLast(Constants.CONNECTION_HANDLER_NAME, connectionHandler);
                         pipelineConfigurator.accept(pipeline);
                         ch.closeFuture().addListener(channelFuture -> clearNettyChannel());

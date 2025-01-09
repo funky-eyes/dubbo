@@ -20,7 +20,10 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http2.DefaultHttp2GoAwayFrame;
 import io.netty.handler.codec.http2.DefaultHttp2PingFrame;
 import io.netty.handler.codec.http2.Http2Flags;
@@ -39,7 +42,7 @@ import static io.netty.handler.codec.http2.Http2CodecUtil.FRAME_HEADER_LENGTH;
 import static io.netty.handler.codec.http2.Http2CodecUtil.PING_FRAME_PAYLOAD_LENGTH;
 import static io.netty.handler.codec.http2.Http2FrameTypes.PING;
 
-public class TripleHttp3PingPongHandler extends TriplePingPongHandler implements ShutdownHookCallback {
+public class TripleHttp3PingPongHandler extends TriplePingPongHandler {
 
     private static final ErrorTypeAwareLogger log = LoggerFactory.getErrorTypeAwareLogger(TripleHttp3PingPongHandler.class);
 
@@ -50,12 +53,14 @@ public class TripleHttp3PingPongHandler extends TriplePingPongHandler implements
     private GracefulShutdown gracefulShutdown;
 
     public TripleHttp3PingPongHandler(long pingAckTimeout) {
-        super(pingAckTimeout);
+        super(10000);
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
+        QuicStreamChannel streamChannel = Http3.getLocalControlStream(ctx.channel());
+        Optional.ofNullable(streamChannel).ifPresent(channel -> sendPingFrame(ctx, streamChannel));
     }
 
     @Override
@@ -67,7 +72,9 @@ public class TripleHttp3PingPongHandler extends TriplePingPongHandler implements
             }
         }
         if (msg instanceof Http3GoAwayFrame) {
-            ctx.fireUserEventTriggered(new DefaultHttp2GoAwayFrame(((Http3GoAwayFrame)msg).id()));
+            if (!alive.get()) {
+                ctx.fireUserEventTriggered(new DefaultHttp2GoAwayFrame(((Http3GoAwayFrame)msg).id()));
+            }
         }
         super.channelRead(ctx, msg);
     }
@@ -80,38 +87,43 @@ public class TripleHttp3PingPongHandler extends TriplePingPongHandler implements
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
-        pingAckTimeoutFuture.cancel(true);
+        Optional.ofNullable(pingAckTimeoutFuture).ifPresent(future -> future.cancel(true));
         pingAckTimeoutFuture = null;
     }
 
-    private void sendPingFrame(ChannelHandlerContext ctx) {
-        if (alive.get()) {
-            pingAckTimeoutFuture =
-                ctx.executor().schedule(new HealthCheckChannelTask(ctx, alive), pingAckTimeout, TimeUnit.MILLISECONDS);
-        } else if (gracefulShutdown == null) {
-            gracefulShutdown = new GracefulShutdown(ctx, "Connection closed", ctx.newPromise());
-            gracefulShutdown.gracefulHttp3Shutdown();
-        }
+    @Override
+    public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
+        alive.set(false);
     }
 
-    @Override
-    public void callback() throws Throwable {
-        alive.set(false);
+    private void sendPingFrame(ChannelHandlerContext ctx) {
+            sendPingFrame(ctx, ctx.channel());
+    }
+
+    private void sendPingFrame(ChannelHandlerContext ctx, Channel controlStream) {
+        if (alive.get()) {
+            pingAckTimeoutFuture = ctx.executor().schedule(new HealthCheckChannelTask(ctx, controlStream, alive),
+                pingAckTimeout, TimeUnit.MILLISECONDS);
+        } else if (gracefulShutdown == null) {
+            gracefulShutdown = new GracefulShutdown(ctx, "app_requested", ctx.voidPromise());
+            gracefulShutdown.gracefulHttp3Shutdown();
+        }
     }
 
     private static class HealthCheckChannelTask implements Runnable {
 
         private final ChannelHandlerContext ctx;
         private final AtomicBoolean alive;
-        public HealthCheckChannelTask(ChannelHandlerContext ctx, AtomicBoolean alive) {
+        private final Channel controlStream;
+        public HealthCheckChannelTask(ChannelHandlerContext ctx,Channel controlStream, AtomicBoolean alive) {
             this.ctx = ctx;
             this.alive = alive;
+            this.controlStream = controlStream;
         }
 
         @Override
         public void run() {
-            QuicStreamChannel streamChannel =  Http3.getLocalControlStream(ctx.channel());
-            Optional.ofNullable(streamChannel).ifPresent(channel -> {
+            Optional.ofNullable(controlStream).ifPresent(channel -> {
                 DefaultHttp2PingFrame pingFrame = new DefaultHttp2PingFrame(0);
                 Http2Flags flags = pingFrame.ack() ? new Http2Flags().ack(true) : new Http2Flags();
                 ByteBuf buf = ctx.alloc().buffer(FRAME_HEADER_LENGTH + PING_FRAME_PAYLOAD_LENGTH);
@@ -127,6 +139,7 @@ public class TripleHttp3PingPongHandler extends TriplePingPongHandler implements
                             alive.compareAndSet(true, false);
                             ctx.close();
                         }
+                        log.info("ping-pong");
                     });
                 } catch (Exception e) {
                     log.error("Failed to send ping frame", e);

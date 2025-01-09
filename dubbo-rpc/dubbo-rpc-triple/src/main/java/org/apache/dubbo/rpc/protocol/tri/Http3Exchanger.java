@@ -16,6 +16,7 @@
  */
 package org.apache.dubbo.rpc.protocol.tri;
 
+import io.netty.incubator.codec.http3.Http3ClientConnectionHandler;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.config.Configuration;
 import org.apache.dubbo.common.constants.LoggerCodeConstants;
@@ -126,10 +127,13 @@ public final class Http3Exchanger {
 
     private static Consumer<ChannelPipeline> configClientPipeline(URL url) {
         int heartbeat = UrlUtils.getHeartbeat(url);
+        TripleHttp3PingPongHandler tripleHttp3PingPongHandler = new TripleHttp3PingPongHandler(heartbeat);
         return pipeline -> {
+            pipeline.addLast(
+                new Http3ClientConnectionHandler(tripleHttp3PingPongHandler, null, null, null, true));
             pipeline.addLast(Http3ClientFrameCodec.INSTANCE);
             pipeline.addLast(new IdleStateHandler(heartbeat, 0, 0, TimeUnit.MILLISECONDS));
-            pipeline.addLast(new TripleHttp3PingPongHandler(heartbeat));
+            pipeline.addLast(tripleHttp3PingPongHandler);
         };
     }
 
