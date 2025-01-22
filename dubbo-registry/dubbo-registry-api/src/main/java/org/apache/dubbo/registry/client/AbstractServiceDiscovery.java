@@ -130,27 +130,28 @@ public abstract class AbstractServiceDiscovery implements ServiceDiscovery {
     }
 
     public void removeExpiredMetadataInfo(int metadataInfoCacheSize, int metadataInfoCacheExpireTime) {
+        Long time = null;
         if (metadataInfos.size() > metadataInfoCacheSize) {
             List<MetadataInfoStat> values = new ArrayList<>(metadataInfos.values());
             values.sort(Comparator.comparingLong(MetadataInfoStat::getUpdateTime));
             for (MetadataInfoStat v : values) {
-                long time = System.currentTimeMillis() - v.getUpdateTime();
+                time = System.currentTimeMillis() - v.getUpdateTime();
                 if (time > metadataInfoCacheExpireTime) {
                     metadataInfos.remove(v.metadataInfo.getRevision(), v);
                 } else {
-                    this.refreshCacheFuture = applicationModel
-                            .getFrameworkModel()
-                            .getBeanFactory()
-                            .getBean(FrameworkExecutorRepository.class)
-                            .getSharedScheduledExecutor()
-                            .schedule(
-                                    () -> removeExpiredMetadataInfo(metadataInfoCacheSize, metadataInfoCacheExpireTime),
-                                    time,
-                                    TimeUnit.MILLISECONDS);
                     break;
                 }
             }
         }
+        this.refreshCacheFuture = applicationModel
+                .getFrameworkModel()
+                .getBeanFactory()
+                .getBean(FrameworkExecutorRepository.class)
+                .getSharedScheduledExecutor()
+                .schedule(
+                        () -> removeExpiredMetadataInfo(metadataInfoCacheSize, metadataInfoCacheExpireTime),
+                        time == null ? metadataInfoCacheExpireTime / 2 : time,
+                        TimeUnit.MILLISECONDS);
     }
 
     @Override
