@@ -115,19 +115,24 @@ public abstract class AbstractServiceDiscovery implements ServiceDiscovery {
 
     private void removeExpiredMetadataInfo(int metadataInfoCacheSize, int metadataInfoCacheExpireTime) {
         Long nextTime = null;
+        // Cache cleanup is only required when the cache size exceeds the cache limit.
         if (metadataInfos.size() > metadataInfoCacheSize) {
             List<MetadataInfoStat> values = new ArrayList<>(metadataInfos.values());
+            // Place the earliest data at the front
             values.sort(Comparator.comparingLong(MetadataInfoStat::getUpdateTime));
             for (MetadataInfoStat v : values) {
                 long time = System.currentTimeMillis() - v.getUpdateTime();
                 if (time > metadataInfoCacheExpireTime) {
                     metadataInfos.remove(v.metadataInfo.getRevision(), v);
                 } else {
+                    // Calculate how long it will take for the next task to start
                     nextTime = metadataInfoCacheExpireTime - time;
                     break;
                 }
             }
         }
+        // If there is no metadata to clean up this time, the next task will start within half of the cache expiration
+        // time.
         startRefreshCache(
                 nextTime == null ? metadataInfoCacheExpireTime / 2 : nextTime,
                 metadataInfoCacheSize,
