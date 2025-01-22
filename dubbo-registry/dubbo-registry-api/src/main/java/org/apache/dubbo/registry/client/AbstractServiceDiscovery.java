@@ -114,27 +114,27 @@ public abstract class AbstractServiceDiscovery implements ServiceDiscovery {
     }
 
     private void removeExpiredMetadataInfo(int metadataInfoCacheSize, int metadataInfoCacheExpireTime) {
-        Long time = null;
+        Long nextTime = null;
         if (metadataInfos.size() > metadataInfoCacheSize) {
             List<MetadataInfoStat> values = new ArrayList<>(metadataInfos.values());
             values.sort(Comparator.comparingLong(MetadataInfoStat::getUpdateTime));
             for (MetadataInfoStat v : values) {
-                time = System.currentTimeMillis() - v.getUpdateTime();
+                long time = System.currentTimeMillis() - v.getUpdateTime();
                 if (time > metadataInfoCacheExpireTime) {
                     metadataInfos.remove(v.metadataInfo.getRevision(), v);
-                    time = null;
                 } else {
+                    nextTime = metadataInfoCacheExpireTime - time;
                     break;
                 }
             }
         }
         startRefreshCache(
-                time == null ? metadataInfoCacheExpireTime / 2 : time,
+                nextTime == null ? metadataInfoCacheExpireTime / 2 : nextTime,
                 metadataInfoCacheSize,
                 metadataInfoCacheExpireTime);
     }
 
-    private void startRefreshCache(long time, int metadataInfoCacheSize, int metadataInfoCacheExpireTime) {
+    private void startRefreshCache(long nextTime, int metadataInfoCacheSize, int metadataInfoCacheExpireTime) {
         this.refreshCacheFuture = applicationModel
                 .getFrameworkModel()
                 .getBeanFactory()
@@ -142,7 +142,7 @@ public abstract class AbstractServiceDiscovery implements ServiceDiscovery {
                 .getSharedScheduledExecutor()
                 .schedule(
                         () -> removeExpiredMetadataInfo(metadataInfoCacheSize, metadataInfoCacheExpireTime),
-                        time,
+                        nextTime,
                         TimeUnit.MILLISECONDS);
     }
 
