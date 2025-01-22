@@ -35,6 +35,8 @@ import org.apache.dubbo.registry.client.metadata.ServiceInstanceMetadataUtils;
 import org.apache.dubbo.registry.client.metadata.store.MetaCacheManager;
 import org.apache.dubbo.rpc.model.ApplicationModel;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -70,7 +72,7 @@ public abstract class AbstractServiceDiscovery implements ServiceDiscovery {
     protected volatile ServiceInstance serviceInstance;
     protected volatile MetadataInfo metadataInfo;
     protected final ConcurrentHashMap<String, MetadataInfoStat> metadataInfos = new ConcurrentHashMap<>();
-    protected final ScheduledFuture<?> refreshCacheFuture;
+    protected volatile ScheduledFuture<?> refreshCacheFuture;
     protected MetadataReport metadataReport;
     protected String metadataType;
     protected final MetaCacheManager metaCacheManager;
@@ -115,32 +117,32 @@ public abstract class AbstractServiceDiscovery implements ServiceDiscovery {
                 .getBeanFactory()
                 .getBean(FrameworkExecutorRepository.class)
                 .getSharedScheduledExecutor()
-                .scheduleAtFixedRate(
-                        () -> {
-                            try {
-                                while (metadataInfos.size() > metadataInfoCacheSize) {
-                                    AtomicReference<String> oldestRevision = new AtomicReference<>();
-                                    AtomicReference<MetadataInfoStat> oldestStat = new AtomicReference<>();
-                                    metadataInfos.forEach((k, v) -> {
-                                        if (System.currentTimeMillis() - v.getUpdateTime() > metadataInfoCacheExpireTime
-                                                && (oldestStat.get() == null
-                                                        || oldestStat.get().getUpdateTime() > v.getUpdateTime())) {
-                                            oldestRevision.set(k);
-                                            oldestStat.set(v);
-                                        }
-                                    });
-                                    if (oldestStat.get() != null) {
-                                        metadataInfos.remove(oldestRevision.get(), oldestStat.get());
-                                    }
-                                }
-                            } catch (Throwable t) {
-                                logger.error(
-                                        INTERNAL_ERROR, "", "", "Error occurred when clean up metadata info cache.", t);
-                            }
-                        },
-                        metadataInfoCacheExpireTime / 2,
-                        metadataInfoCacheExpireTime / 2,
-                        TimeUnit.MILLISECONDS);
+            .schedule(() -> {
+                try {
+                    removeExpiredMetadataInfo(metadataInfoCacheSize, metadataInfoCacheExpireTime);
+                } catch (Throwable t) {
+                    logger.error(INTERNAL_ERROR, "", "", "Error occurred when clean up metadata info cache.", t);
+                }
+            }, metadataInfoCacheExpireTime / 2, TimeUnit.MILLISECONDS);
+    }
+
+    public void removeExpiredMetadataInfo(int metadataInfoCacheSize, int metadataInfoCacheExpireTime) {
+        if (metadataInfos.size() > metadataInfoCacheSize) {
+            List<MetadataInfoStat> values = new ArrayList<>(metadataInfos.values());
+            values.sort(Comparator.comparingLong(MetadataInfoStat::getUpdateTime));
+            for (MetadataInfoStat v : values) {
+                long time = System.currentTimeMillis() - v.getUpdateTime();
+                if (System.currentTimeMillis() - v.getUpdateTime() > metadataInfoCacheExpireTime) {
+                    metadataInfos.remove(v.metadataInfo.getRevision(), v);
+                } else {
+                    this.refreshCacheFuture = applicationModel.getFrameworkModel().getBeanFactory()
+                        .getBean(FrameworkExecutorRepository.class).getSharedScheduledExecutor()
+                        .schedule(() -> removeExpiredMetadataInfo(metadataInfoCacheSize, metadataInfoCacheExpireTime),
+                            time, TimeUnit.MILLISECONDS);
+                    break;
+                }
+            }
+        }
     }
 
     @Override
