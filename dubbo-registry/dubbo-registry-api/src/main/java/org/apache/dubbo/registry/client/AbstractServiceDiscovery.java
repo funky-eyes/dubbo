@@ -135,7 +135,7 @@ public abstract class AbstractServiceDiscovery implements ServiceDiscovery {
             values.sort(Comparator.comparingLong(MetadataInfoStat::getUpdateTime));
             for (MetadataInfoStat v : values) {
                 long time = System.currentTimeMillis() - v.getUpdateTime();
-                if (System.currentTimeMillis() - v.getUpdateTime() > metadataInfoCacheExpireTime) {
+                if (time > metadataInfoCacheExpireTime) {
                     metadataInfos.remove(v.metadataInfo.getRevision(), v);
                 } else {
                     this.refreshCacheFuture = applicationModel
