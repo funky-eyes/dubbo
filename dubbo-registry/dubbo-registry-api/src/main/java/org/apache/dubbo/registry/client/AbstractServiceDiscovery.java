@@ -43,7 +43,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_METADATA_INFO_CACHE_EXPIRE;
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_METADATA_INFO_CACHE_SIZE;
@@ -117,13 +116,17 @@ public abstract class AbstractServiceDiscovery implements ServiceDiscovery {
                 .getBeanFactory()
                 .getBean(FrameworkExecutorRepository.class)
                 .getSharedScheduledExecutor()
-            .schedule(() -> {
-                try {
-                    removeExpiredMetadataInfo(metadataInfoCacheSize, metadataInfoCacheExpireTime);
-                } catch (Throwable t) {
-                    logger.error(INTERNAL_ERROR, "", "", "Error occurred when clean up metadata info cache.", t);
-                }
-            }, metadataInfoCacheExpireTime / 2, TimeUnit.MILLISECONDS);
+                .schedule(
+                        () -> {
+                            try {
+                                removeExpiredMetadataInfo(metadataInfoCacheSize, metadataInfoCacheExpireTime);
+                            } catch (Throwable t) {
+                                logger.error(
+                                        INTERNAL_ERROR, "", "", "Error occurred when clean up metadata info cache.", t);
+                            }
+                        },
+                        metadataInfoCacheExpireTime / 2,
+                        TimeUnit.MILLISECONDS);
     }
 
     public void removeExpiredMetadataInfo(int metadataInfoCacheSize, int metadataInfoCacheExpireTime) {
@@ -135,10 +138,15 @@ public abstract class AbstractServiceDiscovery implements ServiceDiscovery {
                 if (System.currentTimeMillis() - v.getUpdateTime() > metadataInfoCacheExpireTime) {
                     metadataInfos.remove(v.metadataInfo.getRevision(), v);
                 } else {
-                    this.refreshCacheFuture = applicationModel.getFrameworkModel().getBeanFactory()
-                        .getBean(FrameworkExecutorRepository.class).getSharedScheduledExecutor()
-                        .schedule(() -> removeExpiredMetadataInfo(metadataInfoCacheSize, metadataInfoCacheExpireTime),
-                            time, TimeUnit.MILLISECONDS);
+                    this.refreshCacheFuture = applicationModel
+                            .getFrameworkModel()
+                            .getBeanFactory()
+                            .getBean(FrameworkExecutorRepository.class)
+                            .getSharedScheduledExecutor()
+                            .schedule(
+                                    () -> removeExpiredMetadataInfo(metadataInfoCacheSize, metadataInfoCacheExpireTime),
+                                    time,
+                                    TimeUnit.MILLISECONDS);
                     break;
                 }
             }
