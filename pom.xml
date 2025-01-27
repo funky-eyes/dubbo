@@ -153,7 +153,7 @@
     <maven_compiler_version>3.13.0</maven_compiler_version>
     <maven_source_version>3.3.1</maven_source_version>
     <maven_javadoc_version>3.11.2</maven_javadoc_version>
-    <maven_jetty_version>9.4.56.v20240826</maven_jetty_version>
+    <maven_jetty_version>9.4.57.v20241219</maven_jetty_version>
     <maven_checkstyle_version>3.6.0</maven_checkstyle_version>
     <maven_jacoco_version>0.8.12</maven_jacoco_version>
     <maven_flatten_version>1.6.0</maven_flatten_version>
@@ -172,7 +172,7 @@
     <spotless-maven-plugin.version>2.43.0</spotless-maven-plugin.version>
     <dubbo-shared-resources.version>1.0.0</dubbo-shared-resources.version>
     <palantirJavaFormat.version>2.38.0</palantirJavaFormat.version>
-    <revision>3.3.3-SNAPSHOT</revision>
+    <revision>3.3.4-SNAPSHOT</revision>
   </properties>
 
   <dependencyManagement>
